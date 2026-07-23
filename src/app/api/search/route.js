@@ -37,6 +37,20 @@ export async function POST(request) {
     const notionApiKey = process.env.NOTION_API_KEY;
     const notionDatabaseId = process.env.NOTION_DATABASE_ID;
 
+    // TEMPORARY DIAGNOSTIC LOGGING — remove once the "Search failed" issue
+    // is confirmed fixed. Never logs the actual secret value, only whether
+    // it's present and a short, non-sensitive prefix/length so we can tell
+    // "missing entirely" apart from "present but wrong". View this with
+    // `npx wrangler tail` or the Worker's Logs tab in the Cloudflare
+    // dashboard while reproducing a search on the live site.
+    console.log("Notion env check:", {
+      hasApiKey: Boolean(notionApiKey),
+      apiKeyPrefix: notionApiKey ? notionApiKey.slice(0, 5) : null,
+      apiKeyLength: notionApiKey?.length ?? 0,
+      hasDatabaseId: Boolean(notionDatabaseId),
+      databaseIdLength: notionDatabaseId?.length ?? 0,
+    });
+
     if (!notionApiKey || !notionDatabaseId) {
       // Log the specific cause server-side only — never leak config details
       // to the client response.
@@ -114,7 +128,19 @@ export async function POST(request) {
 
     return NextResponse.json(plates);
   } catch (error) {
-    console.error(error);
+    // TEMPORARY DIAGNOSTIC LOGGING — remove once the "Search failed" issue
+    // is confirmed fixed. Notion SDK errors (APIResponseError) carry a
+    // `code` (e.g. "unauthorized", "object_not_found", "validation_error")
+    // and `status` (HTTP status Notion returned) that are far more useful
+    // than the bare error object. View this with `npx wrangler tail` or the
+    // Worker's Logs tab in the Cloudflare dashboard.
+    console.error("Notion search failed:", {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      status: error?.status,
+      body: error?.body,
+    });
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }
 }

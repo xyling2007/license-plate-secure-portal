@@ -11,6 +11,14 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Without this, `wrangler deploy` overwrites/deletes any plaintext
+  // "Environment Variable" (not "Secret") set via the dashboard on every
+  // deploy, since they aren't declared anywhere in this file. This is a
+  // likely cause of NOTION_API_KEY/NOTION_DATABASE_ID going missing after a
+  // Git-triggered redeploy. Note this does NOT apply to variables of type
+  // "Secret" — those are never touched by `wrangler deploy` regardless of
+  // this flag. See: https://developers.cloudflare.com/workers/wrangler/configuration/#keep_vars
+  "keep_vars": true,
   // Native Workers rate limiting for the search endpoint (anti-scraping).
   // See src/app/api/search/route.js.
   "ratelimits": [
