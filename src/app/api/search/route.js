@@ -71,29 +71,45 @@ export async function POST(request) {
     });
     const dataSourceId = db.data_sources[0].id;
 
-    // Default (loose) filter — substring search across all three fields.
-    // Note: "車款" is a Notion `select` property, which only supports
-    // `equals`/`does_not_equal` (no `contains`), so it uses `equals` even
-    // in this "loose" variant.
-    let filter = {
-      or: [
-        { property: "車牌", title: { contains: search } },
-        { property: "登記人", rich_text: { contains: search } },
-        { property: "車款", select: { equals: search } },
-      ],
-    };
+    // "車款" is a Notion `select` property. Critically, Notion's API
+    // rejects the ENTIRE query with a 400 validation_error if a
+    // `select.equals` filter value isn't one of that property's defined
+    // options — it does NOT just treat it as "no match" for that clause
+    // and move on. (This is exactly what was causing every search for a
+    // plate number, e.g. "alm-8077", to fail: it isn't a valid "車款"
+    // option, so Notion rejected the whole OR filter, 車牌/登記人 clauses
+    // included.) So we look up the real option list first and only add the
+    // 車款 clause when `search` actually matches one of them.
+    const dataSource = await notion.dataSources.retrieve({
+      data_source_id: dataSourceId,
+    });
+    const carModelOptions =
+      dataSource.properties?.["車款"]?.select?.options?.map((o) => o.name) ||
+      [];
+    const searchMatchesCarModelOption = carModelOptions.includes(search);
+
+    // Default (loose) filter — substring search across the text fields.
+    let orConditions = [
+      { property: "車牌", title: { contains: search } },
+      { property: "登記人", rich_text: { contains: search } },
+    ];
+    if (searchMatchesCarModelOption) {
+      orConditions.push({ property: "車款", select: { equals: search } });
+    }
+    let filter = { or: orConditions };
 
     // ===== EXACT MATCH & SINGLE RESULT LIMIT FOR SECURITY =====
     // Overrides the loose filter above so only an exact string match
     // qualifies. TO REVERT TO LOOSE SEARCH: delete this block (down to the
     // matching END marker) — the `filter` built above will be used as-is.
-    filter = {
-      or: [
-        { property: "車牌", title: { equals: search } },
-        { property: "登記人", rich_text: { equals: search } },
-        { property: "車款", select: { equals: search } },
-      ],
-    };
+    orConditions = [
+      { property: "車牌", title: { equals: search } },
+      { property: "登記人", rich_text: { equals: search } },
+    ];
+    if (searchMatchesCarModelOption) {
+      orConditions.push({ property: "車款", select: { equals: search } });
+    }
+    filter = { or: orConditions };
     // ===== END EXACT MATCH & SINGLE RESULT LIMIT FOR SECURITY =====
 
     // Let Notion do the filtering in the cloud — only matching rows come back.
