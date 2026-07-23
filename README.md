@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 車牌查詢入口 (License Plate Search Portal)
 
-## Getting Started
+An internal license plate / registrant lookup tool built with [Next.js](https://nextjs.org), backed by a [Notion](https://developers.notion.com) database, and deployed to [Cloudflare Workers](https://developers.cloudflare.com/workers/) via the [OpenNext Cloudflare adapter](https://opennext.js.org/cloudflare).
 
-First, run the development server:
+## Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **Data source:** Notion database, accessed through `@notionhq/client`
+- **Hosting:** Cloudflare Workers, via `@opennextjs/cloudflare`
+- **Styling:** Tailwind CSS v4
+
+## Getting started
+
+Install dependencies, then run the dev server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app. The search UI lives in `src/components/PlatesTable.js`, and the API route it calls is `src/app/api/search/route.js`.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Local environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file in the project root (this is git-ignored, never commit it) with:
 
-## Learn More
+```
+NOTION_API_KEY=secret_or_ntn_...
+NOTION_DATABASE_ID=...
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Building and deploying to Cloudflare
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This project deploys as a Cloudflare Worker, not to Vercel. See `wrangler.jsonc` for the Worker configuration.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run preview   # build + run locally on the Workers runtime
+npm run deploy    # build + deploy to Cloudflare
+```
 
-## Deploy on Vercel
+In production, `NOTION_API_KEY` and `NOTION_DATABASE_ID` are set as **Secrets** under the Worker's **Settings > Variables and Secrets** in the Cloudflare dashboard — not in this repo.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Git pushes to `main` also trigger an automatic build + deploy via Cloudflare Workers Builds (Build command: `npx @opennextjs/cloudflare build`, Deploy command: `npx @opennextjs/cloudflare deploy`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Maintainer / Contact
+
+- **Name:** 林孝揚
+- **Email:** [xyling2007@gmail.com](mailto:xyling2007@gmail.com)
+- **Phone:** 0966649275

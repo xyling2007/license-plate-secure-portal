@@ -33,22 +33,22 @@ export default function Home() {
             <ul className="space-y-2.5 text-sm">
               <li className="flex items-center gap-2">
                 <span className="text-slate-500">Administrator:</span>
-                <span className="text-slate-100 font-medium">西西</span>
+                <span className="text-slate-100 font-medium">林孝揚</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-slate-500">Email:</span>
-                <a href="這裡是email" className="text-blue-400 hover:text-blue-300 hover:underline underline-offset-2">我的email</a>
+                <a href="mailto:xyling2007@gmail.com" className="text-blue-400 hover:text-blue-300 hover:underline underline-offset-2">xyling2007@gmail.com</a>
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-slate-500">Phone:</span>
-                <span className="text-slate-100">西西的電話</span>
+                <span className="text-slate-100">0966649275</span>
               </li>
             </ul>
           </div>
 
           <div className="sm:text-right sm:flex sm:flex-col sm:items-end">
             <a
-              href="mailto:我的mail?subject=Issue Report"
+              href="mailto:xyling2007@gmail.com?subject=Issue Report"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-400 hover:text-blue-300 hover:underline underline-offset-2 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

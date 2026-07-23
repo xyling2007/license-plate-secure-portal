@@ -24,6 +24,13 @@ function getNotionClient() {
 // finished loading. Worst case if this staleness bites: a car model renamed
 // or added in Notion in the last few minutes won't be searchable until the
 // cache expires — acceptable for how rarely that changes.
+//
+// Scope note: each Cloudflare Workers isolate gets its own copy of this
+// variable (it is NOT a shared/distributed cache across edge locations),
+// and an idle isolate can be evicted at any time — so this only ever saves
+// calls *within* a single warm isolate's lifetime. It also can't leak
+// memory: it's one small, bounded object that gets replaced wholesale on
+// every refresh, never appended to.
 const SCHEMA_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 let schemaCache = null; // { dataSourceId, carModelOptions, fetchedAt }
 
@@ -48,20 +55,6 @@ export async function POST(request) {
 
     const notionApiKey = process.env.NOTION_API_KEY;
     const notionDatabaseId = process.env.NOTION_DATABASE_ID;
-
-    // TEMPORARY DIAGNOSTIC LOGGING — remove once the "Search failed" issue
-    // is confirmed fixed. Never logs the actual secret value, only whether
-    // it's present and a short, non-sensitive prefix/length so we can tell
-    // "missing entirely" apart from "present but wrong". View this with
-    // `npx wrangler tail` or the Worker's Logs tab in the Cloudflare
-    // dashboard while reproducing a search on the live site.
-    console.log("Notion env check:", {
-      hasApiKey: Boolean(notionApiKey),
-      apiKeyPrefix: notionApiKey ? notionApiKey.slice(0, 5) : null,
-      apiKeyLength: notionApiKey?.length ?? 0,
-      hasDatabaseId: Boolean(notionDatabaseId),
-      databaseIdLength: notionDatabaseId?.length ?? 0,
-    });
 
     if (!notionApiKey || !notionDatabaseId) {
       // Log the specific cause server-side only — never leak config details
@@ -89,7 +82,12 @@ export async function POST(request) {
       const db = await notion.databases.retrieve({
         database_id: notionDatabaseId,
       });
-      dataSourceId = db.data_sources[0].id;
+      dataSourceId = db.data_sources?.[0]?.id;
+      if (!dataSourceId) {
+        throw new Error(
+          "Notion database has no data sources — check NOTION_DATABASE_ID"
+        );
+      }
 
       // "車款" is a Notion `select` property. Critically, Notion's API
       // rejects the ENTIRE query with a 400 validation_error if a
@@ -169,18 +167,15 @@ export async function POST(request) {
 
     return NextResponse.json(plates);
   } catch (error) {
-    // TEMPORARY DIAGNOSTIC LOGGING — remove once the "Search failed" issue
-    // is confirmed fixed. Notion SDK errors (APIResponseError) carry a
-    // `code` (e.g. "unauthorized", "object_not_found", "validation_error")
-    // and `status` (HTTP status Notion returned) that are far more useful
-    // than the bare error object. View this with `npx wrangler tail` or the
-    // Worker's Logs tab in the Cloudflare dashboard.
+    // Notion SDK errors (APIResponseError) carry a `code` (e.g.
+    // "unauthorized", "object_not_found", "validation_error") and `status`
+    // that are far more useful for diagnosing production issues via
+    // `wrangler tail` / the dashboard Logs tab than the bare error object.
     console.error("Notion search failed:", {
       name: error?.name,
       message: error?.message,
       code: error?.code,
       status: error?.status,
-      body: error?.body,
     });
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }

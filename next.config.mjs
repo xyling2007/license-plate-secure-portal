@@ -2,7 +2,9 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  // Drop the "X-Powered-By: Next.js" response header — no functional
+  // benefit to advertising the framework on a public-facing endpoint.
+  poweredByHeader: false,
 };
 
 export default nextConfig;
