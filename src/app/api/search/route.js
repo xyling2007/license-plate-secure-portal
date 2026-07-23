@@ -58,11 +58,14 @@ export async function POST(request) {
     const dataSourceId = db.data_sources[0].id;
 
     // Default (loose) filter — substring search across all three fields.
+    // Note: "車款" is a Notion `select` property, which only supports
+    // `equals`/`does_not_equal` (no `contains`), so it uses `equals` even
+    // in this "loose" variant.
     let filter = {
       or: [
         { property: "車牌", title: { contains: search } },
-        { property: "車主", rich_text: { contains: search } },
-        { property: "車型", rich_text: { contains: search } },
+        { property: "登記人", rich_text: { contains: search } },
+        { property: "車款", select: { equals: search } },
       ],
     };
 
@@ -73,8 +76,8 @@ export async function POST(request) {
     filter = {
       or: [
         { property: "車牌", title: { equals: search } },
-        { property: "車主", rich_text: { equals: search } },
-        { property: "車型", rich_text: { equals: search } },
+        { property: "登記人", rich_text: { equals: search } },
+        { property: "車款", select: { equals: search } },
       ],
     };
     // ===== END EXACT MATCH & SINGLE RESULT LIMIT FOR SECURITY =====
@@ -96,12 +99,16 @@ export async function POST(request) {
 
     const plates = results.map((page) => {
       const props = page.properties;
+
       return {
         id: page.id,
-        licensePlate: props["車牌"].title[0]?.plain_text || "",
-        owner: props["車主"].rich_text[0]?.plain_text || "",
-        carModel: props["車型"].rich_text[0]?.plain_text || "",
-        contactNumber: props["聯絡電話"]?.phone_number || "",
+        licensePlate: props["車牌"]?.title?.[0]?.plain_text || "",
+        registrant: props["登記人"]?.rich_text?.[0]?.plain_text || "",
+        phone: props["登記電話"]?.phone_number || "",
+        carModel: props["車款"]?.select?.name || "",
+        // "分類" is a select property with two options: 汽車 (car) / 機車
+        // (motorcycle). Exposed as-is so the frontend can branch on it.
+        category: props["分類"]?.select?.name || "",
       };
     });
 

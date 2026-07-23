@@ -44,7 +44,7 @@ export default function PlatesTable() {
         className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-7 mb-8"
       >
         <label className="block text-sm font-medium text-slate-700 mb-2.5">
-          搜尋車牌、車主或車型
+          搜尋車牌、登記人或車款
         </label>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -89,7 +89,7 @@ export default function PlatesTable() {
             </svg>
           </div>
           <p className="text-slate-600 text-sm font-medium">Enter a license plate to begin</p>
-          <p className="text-slate-400 text-xs mt-1.5">請輸入車牌、車主或車型以開始搜尋</p>
+          <p className="text-slate-400 text-xs mt-1.5">請輸入車牌、登記人或車款以開始搜尋</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="animate-fade-in bg-white rounded-2xl ring-1 ring-slate-200 py-16 text-center">
@@ -106,11 +106,24 @@ export default function PlatesTable() {
                 <span className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 font-mono text-sm font-semibold tracking-wider text-white">
                   {plate.licensePlate}
                 </span>
-                {plate.carModel && (
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 whitespace-nowrap">
-                    {plate.carModel}
-                  </span>
-                )}
+                <div className="flex flex-wrap justify-end items-center gap-1.5">
+                  {plate.category && (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
+                        plate.category === "機車"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {plate.category}
+                    </span>
+                  )}
+                  {plate.carModel && (
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 whitespace-nowrap">
+                      {plate.carModel}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 space-y-2.5 border-t border-slate-100 pt-4">
@@ -118,13 +131,13 @@ export default function PlatesTable() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
-                  <span className="font-medium">{plate.owner || "—"}</span>
+                  <span className="font-medium">{plate.registrant || "—"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 5a2 2 0 012-2h2.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-1.55.775a11.037 11.037 0 006.105 6.105l.775-1.55a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
-                  <span>{plate.contactNumber || "—"}</span>
+                  <span>{plate.phone || "—"}</span>
                 </div>
               </div>
             </div>
