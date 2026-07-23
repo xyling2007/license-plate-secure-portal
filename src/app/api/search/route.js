@@ -2,7 +2,18 @@ import { Client } from "@notionhq/client";
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
+// NOTE: Do NOT construct the Notion client at module scope (top-level).
+// On Cloudflare Workers, @opennextjs/cloudflare only copies your Worker's
+// env vars/secrets into `process.env` *inside* the per-request handler
+// (see node_modules/@opennextjs/aws/dist/overrides/wrappers/cloudflare-node.js).
+// Module-level code runs once at cold start, *before* that copy happens, so
+// `process.env.NOTION_API_KEY` would still be `undefined` here — this is
+// exactly why it worked in local Next.js dev (where process.env is populated
+// before any module import) but failed as a deployed Worker. Reading it
+// inside the request handler below reads it after it's been populated.
+function getNotionClient() {
+  return new Client({ auth: process.env.NOTION_API_KEY });
+}
 
 export async function POST(request) {
   try {
@@ -23,9 +34,26 @@ export async function POST(request) {
       return NextResponse.json([]);
     }
 
+    const notionApiKey = process.env.NOTION_API_KEY;
+    const notionDatabaseId = process.env.NOTION_DATABASE_ID;
+
+    if (!notionApiKey || !notionDatabaseId) {
+      // Log the specific cause server-side only — never leak config details
+      // to the client response.
+      console.error(
+        "Missing Notion config at runtime:",
+        !notionApiKey ? "NOTION_API_KEY" : "",
+        !notionDatabaseId ? "NOTION_DATABASE_ID" : "",
+        "— check Settings > Variables and Secrets on the Worker (not just the build-time variables)."
+      );
+      return NextResponse.json({ error: "Search failed" }, { status: 500 });
+    }
+
+    const notion = getNotionClient();
+
     // Resolve the data source id for this database (Notion API 2025-09-03+).
     const db = await notion.databases.retrieve({
-      database_id: process.env.NOTION_DATABASE_ID,
+      database_id: notionDatabaseId,
     });
     const dataSourceId = db.data_sources[0].id;
 
