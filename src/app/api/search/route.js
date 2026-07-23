@@ -15,6 +15,18 @@ function getNotionClient() {
   return new Client({ auth: process.env.NOTION_API_KEY });
 }
 
+// Simple in-memory cache for the data source id + "車款" select options, so
+// most requests skip straight to the actual search query instead of paying
+// for `databases.retrieve` + `dataSources.retrieve` on every single search.
+// This is safe as module-level *mutable state*, unlike `process.env` above —
+// there's no cold-start timing issue here since we only ever read/write
+// `schemaCache` from inside the request handler, well after the module has
+// finished loading. Worst case if this staleness bites: a car model renamed
+// or added in Notion in the last few minutes won't be searchable until the
+// cache expires — acceptable for how rarely that changes.
+const SCHEMA_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+let schemaCache = null; // { dataSourceId, carModelOptions, fetchedAt }
+
 export async function POST(request) {
   try {
     // This endpoint is public with no login, so throttle per-IP to slow
@@ -65,27 +77,40 @@ export async function POST(request) {
 
     const notion = getNotionClient();
 
-    // Resolve the data source id for this database (Notion API 2025-09-03+).
-    const db = await notion.databases.retrieve({
-      database_id: notionDatabaseId,
-    });
-    const dataSourceId = db.data_sources[0].id;
+    let dataSourceId;
+    let carModelOptions;
+    const cacheIsFresh =
+      schemaCache && Date.now() - schemaCache.fetchedAt < SCHEMA_CACHE_TTL_MS;
 
-    // "車款" is a Notion `select` property. Critically, Notion's API
-    // rejects the ENTIRE query with a 400 validation_error if a
-    // `select.equals` filter value isn't one of that property's defined
-    // options — it does NOT just treat it as "no match" for that clause
-    // and move on. (This is exactly what was causing every search for a
-    // plate number, e.g. "alm-8077", to fail: it isn't a valid "車款"
-    // option, so Notion rejected the whole OR filter, 車牌/登記人 clauses
-    // included.) So we look up the real option list first and only add the
-    // 車款 clause when `search` actually matches one of them.
-    const dataSource = await notion.dataSources.retrieve({
-      data_source_id: dataSourceId,
-    });
-    const carModelOptions =
-      dataSource.properties?.["車款"]?.select?.options?.map((o) => o.name) ||
-      [];
+    if (cacheIsFresh) {
+      ({ dataSourceId, carModelOptions } = schemaCache);
+    } else {
+      // Resolve the data source id for this database (Notion API 2025-09-03+).
+      const db = await notion.databases.retrieve({
+        database_id: notionDatabaseId,
+      });
+      dataSourceId = db.data_sources[0].id;
+
+      // "車款" is a Notion `select` property. Critically, Notion's API
+      // rejects the ENTIRE query with a 400 validation_error if a
+      // `select.equals` filter value isn't one of that property's defined
+      // options — it does NOT just treat it as "no match" for that clause
+      // and move on. (This is exactly what was causing every search for a
+      // plate number, e.g. "alm-8077", to fail: it isn't a valid "車款"
+      // option, so Notion rejected the whole OR filter, 車牌/登記人 clauses
+      // included.) So we look up the real option list first and only add
+      // the 車款 clause when `search` actually matches one of them.
+      const dataSource = await notion.dataSources.retrieve({
+        data_source_id: dataSourceId,
+      });
+      carModelOptions =
+        dataSource.properties?.["車款"]?.select?.options?.map(
+          (o) => o.name
+        ) || [];
+
+      schemaCache = { dataSourceId, carModelOptions, fetchedAt: Date.now() };
+    }
+
     const searchMatchesCarModelOption = carModelOptions.includes(search);
 
     // Default (loose) filter — substring search across the text fields.
